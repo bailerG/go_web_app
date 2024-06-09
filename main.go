@@ -2,6 +2,7 @@ package main
 
 import (
 	"go_web_app/entities"
+	"go_web_app/repository"
 	"net/http"
 	"text/template"
 )
@@ -10,21 +11,40 @@ var temp = template.Must(template.ParseGlob("templates/*.html"))
 
 func main() {
 	http.HandleFunc("/", index)
-	err := http.ListenAndServe("localhost:8080", nil)
+	err := http.ListenAndServe(":8000", nil)
 	if err != nil {
 		return
 	}
 }
 
 func index(w http.ResponseWriter, r *http.Request) {
-	products := []entities.Product{
-		{"Xícara", "Azul com desenho", 35.94, 40},
-		{"Sapato", "Couro", 99.90, 100},
-		{"Tenis", "Confortável", 89, 3},
+	db := database.GetDB()
+
+	result, err := db.Query("select * from produtos")
+	if err != nil {
+		panic(err.Error())
 	}
 
-	err := temp.ExecuteTemplate(w, "Index", products)
-	if err != nil {
-		return
+	p := entities.Product{}
+	var products []entities.Product
+
+	for result.Next() {
+		var id, quantity int
+		var name, description string
+		var price float64
+
+		err := result.Scan(&id, &name, &description, &price, &quantity)
+		if err != nil {
+			panic(err.Error())
+		}
+
+		p.Name = name
+		p.Desc = description
+		p.Price = price
+		p.Quantity = quantity
+
+		products = append(products, p)
 	}
+
+	temp.ExecuteTemplate(w, "Index", products)
 }
